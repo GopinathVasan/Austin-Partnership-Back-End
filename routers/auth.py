@@ -12,9 +12,14 @@ from database import SessionLocal, engine
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse  
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
+from fastapi import Form
+from models import ForgotPassword
+import random
+
+
 
 router = APIRouter(
     prefix="/auth",
@@ -32,6 +37,8 @@ bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 models.Base.metadata.create_all(bind=engine)
 
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl="token")
+
+
 
 def get_db():
     try:
@@ -66,14 +73,46 @@ def create_access_token(username: str, user_id: int,
     encode.update({"exp": expire})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
-class ForgotPassword(BaseModel):
+# class LoginForm:
+#     def __int__(self,request: Request):
+#         self.request: Request = request
+#         self.username: Optional[str] = None
+#         self.password: Optional[str] = None
+
+#     async def create_oauth_form(Self):
+#         form = await self.request.form()
+#         self.username = form.get("email")
+#         self.password = form.get("password")
+
+class LoginForm(BaseModel):
+    username: str
+    password: str
+
+class ForgotPasswordRequest(BaseModel):
     email: str
+    phone_number: str
+
+class OTPRequest(BaseModel):
+    email: str
+    otp_code: str
 
 
 class UpdatePassword(BaseModel):
     token: str
     password: str
     password2: str
+
+def send_otp_to_mobile(phone_number: str, otp_code: str):
+    # Placeholder function to simulate sending OTP to a mobile phone
+    print(f"Sending OTP code {otp_code} to {phone_number}")
+
+
+
+
+def generate_otp_code():
+    # Generate a random 6-digit OTP code
+    return ''.join([str(random.randint(0, 9)) for _ in range(6)])
+
 
 async def get_form_data(request: Request) -> dict:
     form_data = await request.form()
@@ -93,9 +132,34 @@ async def get_current_user(request: Request):
     except JWTError:
         raise HTTPException(status_code=404, detail="Not found")
 
+
+# async def get_form_data(request: Request) -> dict:
+#     form_data = await request.form()
+#     return {key: value for key, value in form_data.items()}
+
+# @router.post("/token")
+# async def login_for_access_token(form_data: LoginForm = Depends(get_form_data), db: Session = Depends(get_db)):
+#     user = authenticate_user(form_data.username, form_data.password, db)
+#     if not user:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username or password is incorrect")
+#     token_expires = timedelta(minutes=60)
+#     token = create_access_token(user.username, user.id, expires_delta=token_expires)
+#     return {"access_token": token, "token_type": "bearer"}
+
+
+# @router.post("/token")
+# async def login_for_access_token(response: Response, form_data: dict = Depends(get_form_data), db: Session = Depends(get_db)):
+#     user = authenticate_user(form_data.get("username"), form_data.get("password"), db)
+#     if not user:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username or password is incorrect")
+#     token_expires = timedelta(minutes=60)
+#     token = create_access_token(user.username, user.id, expires_delta=token_expires)
+#     response.set_cookie(key="access_token", value=token, httponly=True)
+#     return {"access_token": token, "token_type": "bearer"}
+
 @router.post("/token")
-async def login_for_access_token(response: Response, form_data: dict = Depends(get_form_data), db: Session = Depends(get_db)):
-    user = authenticate_user(form_data.get("username"), form_data.get("password"), db)
+async def login_for_access_token(response: Response, form_data: LoginForm = Depends(),db: Session = Depends(get_db)):
+    user = authenticate_user(form_data.username, form_data.password, db)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username or password is incorrect")
     token_expires = timedelta(minutes=60)
@@ -116,15 +180,15 @@ async def logout(request: Request):
     response.delete_cookie("access_token")
     return response
 
-@router.post("/register", response_class=HTMLResponse)
+from fastapi import HTTPException
+
+@router.post("/register")
 async def register_user(request: Request, email: str = Form(...), username: str = Form(...), firstname: str = Form(...), lastname: str = Form(...), password: str= Form(...), password2: str = Form(...), db: Session = Depends(get_db)):
     validation1 = db.query(models.USERS).filter(models.USERS.username == username).first()
-
     validation2 = db.query(models.USERS).filter(models.USERS.email == email).first()
 
     if password != password2 or validation1 is not None or validation2 is not None:
-        msg = "Invalid registration request"
-        return templates.TemplateResponse("register.html", {"request": request, "msg": msg})
+        raise HTTPException(status_code=400, detail="Invalid registration request")
 
     user_model = models.USERS()
     user_model.username = username
@@ -136,39 +200,66 @@ async def register_user(request: Request, email: str = Form(...), username: str 
     user_model.hashed_password = hash_password
     user_model.is_active = True
 
-    db.add(user_model)
-    db.commit()
+    try:
+        db.add(user_model)
+        db.commit()
+        return {"message": "User successfully created"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
 
-    msg = "User successfully created"
-    return templates.TemplateResponse("login.html", {"request": request, "msg": msg})
+# Ensure proper dependency injection for the database session
+@router.post("/forgot_password")
+async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        email = request.email
+        phone_number = request.phone_number
+        user = db.query(models.USERS).filter(models.USERS.email == email, models.USERS.phone_number == phone_number).first()
+        if user:
+            otp_code = generate_otp_code()
+            forgot_password_instance = ForgotPassword(email=email, user_id=user.id, otp_code=otp_code, phone_number=phone_number)
+            db.add(forgot_password_instance)
+            db.commit()
+            send_otp_to_mobile(phone_number, otp_code)
+            return {"message": "OTP code sent to your mobile phone"}
+        else:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Email or phone number not found")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
-@router.post("/forgot_password", response_class=HTMLResponse)
-async def forgot_password(response: Response, form_data: ForgotPassword = Depends()):
-    user = db.query(models.USERS).filter(models.USERS.email == form_data.email).first()
-
-    if not user:
-        msg = "User not found with this email"
-    else:
-        # Here you should send an email to the user with a password reset link
-        # The password reset link should contain a unique token that identifies the user
-        msg = "A password reset link has been sent to your email."
-
-    return templates.TemplateResponse("forgot_password.html",{"request": request, "msg": msg})
+@router.post("/verify_otp")
+async def verify_otp(request: OTPRequest, db: Session = Depends(get_db)):
+    try:
+        email = request.email
+        otp_code = request.otp_code
+        forgot_password_instance = db.query(models.ForgotPassword).filter_by(email=email, otp_code=otp_code).first()
+        if forgot_password_instance:
+            # OTP code is valid
+            db.delete(forgot_password_instance)
+            db.commit()
+            return {"message": "OTP code verified successfully"}
+        else:
+            # OTP code is invalid
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid OTP code")
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 @router.post("/update_password", response_class=HTMLResponse)
-async def update_password(response: Response, form_data: UpdatePassword):
-    if password == password2:
-        user = db.query(models.USERS).filter(models.USERS.token == form_data.token).first()
-
-        if user:
-            hash_password = get_password_hash(form_data.password)
-            user.hashed_password = hash_password
-            db.commit()
-
-            msg = "Password successfully updated"
+async def update_password(response: Response, form_data: UpdatePassword, db: Session = Depends(get_db)):
+    try:
+        # You need to define `password` and `password2` from `form_data`
+        password = form_data.password
+        password2 = form_data.password2
+        if password == password2:
+            user = db.query(models.USERS).filter(models.USERS.token == form_data.token).first()
+            if user:
+                hash_password = get_password_hash(form_data.password)
+                user.hashed_password = hash_password
+                db.commit()
+                msg = "Password successfully updated"
+            else:
+                msg = "Invalid token"
         else:
-            msg = "Invalid token"
-    else:
-        msg = "Passwords do not match"
-
-    return templates.TemplateResponse("update_password.html", {"request": request, "msg": msg})
+            msg = "Passwords do not match"
+        # return templates.TemplateResponse("update_password.html", {"request": request, "msg": msg})
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
