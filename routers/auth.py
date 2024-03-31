@@ -85,7 +85,7 @@ def create_access_token(username: str, user_id: int,
 #         self.password = form.get("password")
 
 class LoginForm(BaseModel):
-    username: str
+    email: str
     password: str
 
 class ForgotPasswordRequest(BaseModel):
@@ -157,15 +157,33 @@ async def get_current_user(request: Request):
 #     response.set_cookie(key="access_token", value=token, httponly=True)
 #     return {"access_token": token, "token_type": "bearer"}
 
+# @router.post("/token")
+# async def login_for_access_token(response: Response, form_data: LoginForm = Depends(),db: Session = Depends(get_db)):
+#     user = authenticate_user(form_data.username, form_data.password, db)
+#     if not user:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username or password is incorrect")
+#     token_expires = timedelta(minutes=60)
+#     token = create_access_token(user.username, user.id, expires_delta=token_expires)
+#     response.set_cookie(key="access_token", value=token, httponly=True)
+#     return {"access_token": token, "token_type": "bearer"}
+
 @router.post("/token")
-async def login_for_access_token(response: Response, form_data: LoginForm = Depends(),db: Session = Depends(get_db)):
-    user = authenticate_user(form_data.username, form_data.password, db)
+async def login_for_access_token(response: Response, form_data: LoginForm = Depends(), db: Session = Depends(get_db)):
+    # Check if the provided email exists in the database
+    user = db.query(models.USERS).filter(models.USERS.email == form_data.email).first()
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username or password is incorrect")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect")
+    
+    # Verify the password for the user
+    if not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect")
+
+    # Generate and return the access token if the user is authenticated
     token_expires = timedelta(minutes=60)
-    token = create_access_token(user.username, user.id, expires_delta=token_expires)
+    token = create_access_token(user.email, user.id, expires_delta=token_expires)
     response.set_cookie(key="access_token", value=token, httponly=True)
     return {"access_token": token, "token_type": "bearer"}
+
 
 @router.get("/logout")
 async def logout(request: Request):
