@@ -1,7 +1,7 @@
 import sys
 sys.path.append("..")
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response, Form
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response,Form
 from pydantic import BaseModel
 from typing import Optional
 import models
@@ -15,7 +15,6 @@ from jose import jwt, JWTError
 from fastapi.responses import HTMLResponse  
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
-from fastapi import Form
 from models import ForgotPassword
 import random
 
@@ -53,15 +52,6 @@ def get_password_hash(password):
 def verify_password(plain_password, hashed_password):
     return bcrypt_context.verify(plain_password, hashed_password)
 
-def authenticate_user(username: str, password: str, db):
-    user = db.query(models.USERS).filter(models.USERS.username == username).first()
-
-    if not user:
-        return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    return user
-
 def create_access_token(username: str, user_id: int,
                         expires_delta: Optional[timedelta] = None):
 
@@ -73,16 +63,6 @@ def create_access_token(username: str, user_id: int,
     encode.update({"exp": expire})
     return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
 
-# class LoginForm:
-#     def __int__(self,request: Request):
-#         self.request: Request = request
-#         self.username: Optional[str] = None
-#         self.password: Optional[str] = None
-
-#     async def create_oauth_form(Self):
-#         form = await self.request.form()
-#         self.username = form.get("email")
-#         self.password = form.get("password")
 
 class LoginForm(BaseModel):
     email: str
@@ -114,9 +94,15 @@ def generate_otp_code():
     return ''.join([str(random.randint(0, 9)) for _ in range(6)])
 
 
-async def get_form_data(request: Request) -> dict:
-    form_data = await request.form()
-    return dict(form_data)
+# async def get_form_data(request: Request) -> dict:
+#     form_data = request.json()
+#     return form_data
+    # form_data = await request.form()
+    # return dict(form_data)
+
+# def get_form_data(request: Request) -> dict:
+#     form_data = request.json()
+#     return form_data
 
 async def get_current_user(request: Request):
     try:
@@ -131,11 +117,50 @@ async def get_current_user(request: Request):
         return {"username": username, "id": user_id}
     except JWTError:
         raise HTTPException(status_code=404, detail="Not found")
-
+    
 
 # async def get_form_data(request: Request) -> dict:
 #     form_data = await request.form()
 #     return {key: value for key, value in form_data.items()}
+       
+async def get_form_data(request: Request) -> dict:
+    form_data = await request.json()
+    return {
+        "email": form_data.get("email").encode(),
+        "password": form_data.get("password").encode()
+    }
+
+def authenticate_user(email: str, password: str, db):
+    USERS = db.query(models.USERS)\
+        .filter(models.USERS.email == email)\
+        .first()
+    if not USERS:
+        return False  # User not found
+    if not verify_password(password, USERS.hashed_password):
+        return None  # Incorrect password
+    return USERS  # User authenticated
+
+
+@router.post("/token")
+async def login_for_access_token(response: Response, form_data: dict = Depends(get_form_data), db: Session = Depends(get_db)):
+    email = form_data.get("email")
+    password = form_data.get("password")
+    USERS = authenticate_user(email, password, db)
+    if USERS is False:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect")
+    if USERS is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect")
+
+    token_expires = timedelta(minutes=60)
+    token = create_access_token(USERS.email, USERS.id, expires_delta=token_expires)
+    response.set_cookie(key="access_token", value=token, httponly=True)
+    return {"access_token": token, "token_type": "bearer"}
+
+
+
+# Modify the authenticate_user function to accept the decorator
+
+
 
 # @router.post("/token")
 # async def login_for_access_token(form_data: LoginForm = Depends(get_form_data), db: Session = Depends(get_db)):
@@ -148,41 +173,48 @@ async def get_current_user(request: Request):
 
 
 # @router.post("/token")
-# async def login_for_access_token(response: Response, form_data: dict = Depends(get_form_data), db: Session = Depends(get_db)):
-#     user = authenticate_user(form_data.get("username"), form_data.get("password"), db)
+# async def login_for_access_token(response: Response, request: Request, db: Session = Depends(get_db)):
+#     form_data_dict = await get_form_data(request)
+#     user = await authenticate_user(form_data_dict['email'], form_data_dict['password'], db)
 #     if not user:
-#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username or password is incorrect")
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect")
 #     token_expires = timedelta(minutes=60)
-#     token = create_access_token(user.username, user.id, expires_delta=token_expires)
+#     token = create_access_token(user.email, user.id, expires_delta=token_expires)
 #     response.set_cookie(key="access_token", value=token, httponly=True)
 #     return {"access_token": token, "token_type": "bearer"}
-
-# @router.post("/token")
-# async def login_for_access_token(response: Response, form_data: LoginForm = Depends(),db: Session = Depends(get_db)):
-#     user = authenticate_user(form_data.username, form_data.password, db)
-#     if not user:
-#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username or password is incorrect")
-#     token_expires = timedelta(minutes=60)
-#     token = create_access_token(user.username, user.id, expires_delta=token_expires)
-#     response.set_cookie(key="access_token", value=token, httponly=True)
-#     return {"access_token": token, "token_type": "bearer"}
-
-@router.post("/token")
-async def login_for_access_token(response: Response, form_data: LoginForm = Depends(), db: Session = Depends(get_db)):
-    # Check if the provided email exists in the database
-    user = db.query(models.USERS).filter(models.USERS.email == form_data.email).first()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect")
     
-    # Verify the password for the user
-    if not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect")
+# @router.post("/token")
+# async def login_for_access_token(response: Response, request: Request, db: Session = Depends(get_db)):
+#     form_data = await get_form_data(request)
+#     user = await authenticate_user(form_data.get('email'), form_data.get('password'), db)
+#     if not user:
+#         raise HTTPException(status_code=401, detail="Email or password is incorrect")
+#     token_expires = timedelta(minutes=60)
+#     token = create_access_token(user.email, user.id, expires_delta=token_expires)
+#     response.set_cookie(key="access_token", value=token, httponly=True)
+#     return {"access_token": token, "token_type": "bearer"}
 
-    # Generate and return the access token if the user is authenticated
-    token_expires = timedelta(minutes=60)
-    token = create_access_token(user.email, user.id, expires_delta=token_expires)
-    response.set_cookie(key="access_token", value=token, httponly=True)
-    return {"access_token": token, "token_type": "bearer"}
+
+
+
+
+
+#  @router.post("/token")
+# async def login_for_access_token(response: Response, form_data: LoginForm = Depends(), db: Session = Depends(get_db)):
+#     # Check if the provided email exists in the database
+#     user = db.query(models.USERS).filter(models.USERS.email == form_data.email).first()
+#     if not user:
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect")
+    
+#     # Verify the password for the user
+#     if not verify_password(form_data.password, user.hashed_password):
+#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect")
+
+#     # Generate and return the access token if the user is authenticated
+#     token_expires = timedelta(minutes=60)
+#     token = create_access_token(user.email, user.id, expires_delta=token_expires)
+#     response.set_cookie(key="access_token", value=token, httponly=True)
+#     return {"access_token": token, "token_type": "bearer"}
 
 
 @router.get("/logout")
