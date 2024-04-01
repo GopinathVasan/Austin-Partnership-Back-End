@@ -16,6 +16,7 @@ class USERS(Base):
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
     role = Column(String, index=True)
+    phone_number = Column(Integer, index=True)
 
     forgot_passwords = relationship("ForgotPassword", back_populates="user")
 
