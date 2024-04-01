@@ -13,10 +13,11 @@ from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from fastapi.responses import HTMLResponse  
-from fastapi import Request
 from fastapi.templating import Jinja2Templates
 from models import ForgotPassword
 import random
+from fastapi.params import Body
+from typing import Dict,Any,List
 
 
 
@@ -233,7 +234,15 @@ async def logout(request: Request):
 from fastapi import HTTPException
 
 @router.post("/register")
-async def register_user(request: Request, email: str = Form(...), username: str = Form(...), firstname: str = Form(...), lastname: str = Form(...), password: str= Form(...), password2: str = Form(...), db: Session = Depends(get_db)):
+async def register_user(request: Request, user_data: Dict[str, Any] = Body(...), db: Session = Depends(get_db)):
+    email = user_data.get("email")
+    username = user_data.get("username")
+    firstname = user_data.get("firstname")
+    lastname = user_data.get("lastname")
+    phonenumber = user_data.get("phonenumber")
+    password = user_data.get("password")
+    password2 = user_data.get("password2")
+
     validation1 = db.query(models.USERS).filter(models.USERS.username == username).first()
     validation2 = db.query(models.USERS).filter(models.USERS.email == email).first()
 
@@ -245,6 +254,7 @@ async def register_user(request: Request, email: str = Form(...), username: str 
     user_model.email = email
     user_model.first_name = firstname
     user_model.last_name = lastname
+    user_model.phone_number = phonenumber
 
     hash_password = get_password_hash(password)
     user_model.hashed_password = hash_password
@@ -256,7 +266,6 @@ async def register_user(request: Request, email: str = Form(...), username: str 
         return {"message": "User successfully created"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
-
 # Ensure proper dependency injection for the database session
 @router.post("/forgot_password")
 async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
