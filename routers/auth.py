@@ -81,7 +81,7 @@ class OTPRequest(BaseModel):
 class UpdatePassword(BaseModel):
     token: str
     password: str
-    password2: str
+    confirmPassword: str
 
 def send_otp_to_mobile(phone_number: str, otp_code: str):
     # Placeholder function to simulate sending OTP to a mobile phone
@@ -241,12 +241,12 @@ async def register_user(request: Request, user_data: Dict[str, Any] = Body(...),
     lastname = user_data.get("lastname")
     phonenumber = user_data.get("phonenumber")
     password = user_data.get("password")
-    password2 = user_data.get("password2")
+    confirmPassword = user_data.get("confirmPassword")
 
     validation1 = db.query(models.USERS).filter(models.USERS.username == username).first()
     validation2 = db.query(models.USERS).filter(models.USERS.email == email).first()
 
-    if password != password2 or validation1 is not None or validation2 is not None:
+    if password != confirmPassword or validation1 is not None or validation2 is not None:
         raise HTTPException(status_code=400, detail="Invalid registration request")
 
     user_model = models.USERS()
@@ -305,10 +305,10 @@ async def verify_otp(request: OTPRequest, db: Session = Depends(get_db)):
 @router.post("/update_password", response_class=HTMLResponse)
 async def update_password(response: Response, form_data: UpdatePassword, db: Session = Depends(get_db)):
     try:
-        # You need to define `password` and `password2` from `form_data`
+        # You need to define `password` and `confirmPassword` from `form_data`
         password = form_data.password
-        password2 = form_data.password2
-        if password == password2:
+        confirmPassword = form_data.confirmPassword
+        if password == confirmPassword:
             user = db.query(models.USERS).filter(models.USERS.token == form_data.token).first()
             if user:
                 hash_password = get_password_hash(form_data.password)
