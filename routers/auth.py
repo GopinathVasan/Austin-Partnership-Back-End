@@ -220,18 +220,14 @@ async def login_for_access_token(response: Response, form_data: dict = Depends(g
 
 @router.get("/logout")
 async def logout(request: Request):
-    response = RedirectResponse(url="/auth", status_code=status.HTTP_303_SEE_OTHER)
-    response.delete_cookie("access_token")
-    return response
-
-@router.get("/logout1")
-async def logout(request: Request):
-    msg = "Logout Successfully"
-    response = templates.TemplateResponse("login.html",{"request": request, "msg": msg})
-    response.delete_cookie("access_token")
-    return response
-
-from fastapi import HTTPException
+    try:
+        response = RedirectResponse(url="/auth", status_code=status.HTTP_303_SEE_OTHER)
+        response.delete_cookie("access_token")
+        msg = "Logout Successfully"
+        return response
+    except Exception as e:
+        msg = "Logout Failed"
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 @router.post("/register")
 async def register_user(request: Request, user_data: Dict[str, Any] = Body(...), db: Session = Depends(get_db)):
