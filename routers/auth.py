@@ -206,7 +206,7 @@ async def login_for_access_token(response: Response, form_data: dict = Depends(g
 @router.get("/logout")
 async def logout(request: Request):
     try:
-        response = RedirectResponse(url="/auth", status_code=status.HTTP_303_SEE_OTHER)
+        response = RedirectResponse(url="http://localhost:3000", status_code=status.HTTP_303_SEE_OTHER)
         response.delete_cookie("access_token")
         return JSONResponse(content={"message": "Logout Successfully"})
     except Exception as e:
