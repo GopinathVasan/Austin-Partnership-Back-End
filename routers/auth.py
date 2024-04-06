@@ -2,6 +2,7 @@ import sys
 sys.path.append("..")
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Response,Form
+# from fastapi import FastAPI, JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 import models
@@ -12,7 +13,7 @@ from database import SessionLocal, engine
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
-from fastapi.responses import HTMLResponse  
+from fastapi.responses import HTMLResponse, JSONResponse  
 from fastapi.templating import Jinja2Templates
 from models import ForgotPassword
 import random
@@ -69,30 +70,13 @@ class LoginForm(BaseModel):
     email: str
     password: str
 
-class ForgotPasswordRequest(BaseModel):
-    email: str
-    phone_number: str
+# def send_otp_to_mobile(phone_number: str, otp_code: str):
+#     # Placeholder function to simulate sending OTP to a mobile phone
+#     print(f"Sending OTP code {otp_code} to {phone_number}")
 
-class OTPRequest(BaseModel):
-    email: str
-    otp_code: str
-
-
-class UpdatePassword(BaseModel):
-    token: str
-    password: str
-    confirmPassword: str
-
-def send_otp_to_mobile(phone_number: str, otp_code: str):
-    # Placeholder function to simulate sending OTP to a mobile phone
-    print(f"Sending OTP code {otp_code} to {phone_number}")
-
-
-
-
-def generate_otp_code():
-    # Generate a random 6-digit OTP code
-    return ''.join([str(random.randint(0, 9)) for _ in range(6)])
+# def generate_otp_code():
+#     # Generate a random 6-digit OTP code
+#     return ''.join([str(random.randint(0, 9)) for _ in range(6)])
 
 
 # async def get_form_data(request: Request) -> dict:
@@ -218,16 +202,16 @@ async def login_for_access_token(response: Response, form_data: dict = Depends(g
 #     return {"access_token": token, "token_type": "bearer"}
 
 
+
 @router.get("/logout")
 async def logout(request: Request):
     try:
         response = RedirectResponse(url="/auth", status_code=status.HTTP_303_SEE_OTHER)
         response.delete_cookie("access_token")
-        msg = "Logout Successfully"
-        return response
+        return JSONResponse(content={"message": "Logout Successfully"})
     except Exception as e:
-        msg = "Logout Failed"
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        return JSONResponse(content={"message": "Logout Failed"}, status_code=500)
+
 
 @router.post("/register")
 async def register_user(request: Request, user_data: Dict[str, Any] = Body(...), db: Session = Depends(get_db)):
@@ -263,58 +247,3 @@ async def register_user(request: Request, user_data: Dict[str, Any] = Body(...),
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
 # Ensure proper dependency injection for the database session
-@router.post("/forgot_password")
-async def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    try:
-        email = request.email
-        phone_number = request.phone_number
-        user = db.query(models.USERS).filter(models.USERS.email == email, models.USERS.phone_number == phone_number).first()
-        if user:
-            otp_code = generate_otp_code()
-            forgot_password_instance = ForgotPassword(email=email, user_id=user.id, otp_code=otp_code, phone_number=phone_number)
-            db.add(forgot_password_instance)
-            db.commit()
-            send_otp_to_mobile(phone_number, otp_code)
-            return {"message": "OTP code sent to your mobile phone"}
-        else:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Email or phone number not found")
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-@router.post("/verify_otp")
-async def verify_otp(request: OTPRequest, db: Session = Depends(get_db)):
-    try:
-        email = request.email
-        otp_code = request.otp_code
-        forgot_password_instance = db.query(models.ForgotPassword).filter_by(email=email, otp_code=otp_code).first()
-        if forgot_password_instance:
-            # OTP code is valid
-            db.delete(forgot_password_instance)
-            db.commit()
-            return {"message": "OTP code verified successfully"}
-        else:
-            # OTP code is invalid
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid OTP code")
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-@router.post("/update_password", response_class=HTMLResponse)
-async def update_password(response: Response, form_data: UpdatePassword, db: Session = Depends(get_db)):
-    try:
-        # You need to define `password` and `confirmPassword` from `form_data`
-        password = form_data.password
-        confirmPassword = form_data.confirmPassword
-        if password == confirmPassword:
-            user = db.query(models.USERS).filter(models.USERS.token == form_data.token).first()
-            if user:
-                hash_password = get_password_hash(form_data.password)
-                user.hashed_password = hash_password
-                db.commit()
-                msg = "Password successfully updated"
-            else:
-                msg = "Invalid token"
-        else:
-            msg = "Passwords do not match"
-        # return templates.TemplateResponse("update_password.html", {"request": request, "msg": msg})
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
