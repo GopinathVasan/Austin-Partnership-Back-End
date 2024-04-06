@@ -13,6 +13,7 @@ from fastapi.templating import Jinja2Templates
 from .auth import get_current_user
 
 
+
 router = APIRouter(
     prefix="/users",
     tags=["users"],

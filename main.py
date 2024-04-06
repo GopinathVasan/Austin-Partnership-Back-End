@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import auth,users
+from routers import auth,users,forgotpassword,otp
 
 
 # /clientlogin
@@ -18,4 +18,6 @@ app.add_middleware(
 
 
 app.include_router(auth.router)
-app.include_router(users.router)    
+app.include_router(users.router)
+app.include_router(forgotpassword.router)
+app.include_router(otp.router)   

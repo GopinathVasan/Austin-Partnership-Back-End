@@ -1,10 +1,19 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from database import Base
-# from sqlalchemy.ext.declarative import declarative_base
+from pydantic import BaseModel
 
-# Base = declarative_base()
 
+class OTPVerificationResponse(BaseModel):
+    phone_number: str
+    otp_code: str
+class OTPVerificationRequest(BaseModel):
+    phone_number: str
+    otp_code: str
+class UpdatePassword(BaseModel):
+    phone_number: str
+    new_password: str
+    
 class USERS(Base):
     __tablename__ = "USERS"
 
@@ -20,8 +29,6 @@ class USERS(Base):
 
     forgot_passwords = relationship("ForgotPassword", back_populates="user")
 
-    # todos = relationship("Todos", back_populates="owner")
-
 class ForgotPassword(Base):
     __tablename__ = "FORGOT_PASSWORD"
 
@@ -29,17 +36,18 @@ class ForgotPassword(Base):
     email = Column(String(255))
     created_at = Column(DateTime)
     user_id = Column(Integer, ForeignKey("USERS.id"))
+    phone_number = Column(Integer, index=True)
+    hashed_otp = Column(String(64))
 
     user = relationship("USERS", back_populates="forgot_passwords")
 
-# class Todos(Base):
-#     __tablename__ = "todos"
 
-#     id = Column(Integer, primary_key=True, index=True)
-#     title = Column(String, index=True)
-#     description = Column(String, index=True)
-#     priority = Column(Integer, index=True)
-#     complete = Column(Boolean, default=False)
-#     owner_id = Column(Integer, ForeignKey("USERS.id"))
 
-#     owner = relationship("USERS", back_populates="todos")
+
+class OTPVerification(Base):  # Renamed to avoid naming collision
+    __tablename__ = "OTP_VERIFICATION_REQUEST"
+
+    id = Column(Integer, primary_key=True, index=True)
+    phone_number =  Column(Integer, index=True)
+    otp_code =  Column(Integer, index=True)
+    created_at = Column(DateTime)
