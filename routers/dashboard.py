@@ -122,7 +122,40 @@ async def get_overall_profits(db: Session = Depends(get_db_connection)):
                         "reinvestedAmount": row[1],
                         "revenueGenerated": row[2],
                         "returns": row[3],
-                        "companyExpenses":row[4],
+                        "companyExpenses":row[4]
+                        } for row in query_result]
+        
+        return result_list
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+contact= """SELECT id as "id",
+ald.PROFILE_ID AS "registerId",
+CONCAT(ald.FIRST_NAME,' ',ald.LAST_NAME)AS "name",
+ald.EMAIL AS "email",
+ald.PHONE as "phoneNumber",
+address as "address"
+FROM AP_LLP_DETAILS ald ;"""
+
+
+
+@router.get("/contactinformation", response_model=List[Dict[str, Any]])
+async def get_contact_information(db: Session = Depends(get_db_connection)):
+    try:
+        cursor = db.cursor()
+        cursor.execute(contact)
+        query_result = cursor.fetchall()
+        cursor.close()
+        
+        # Convert query result into list of dictionaries
+        result_list = [{"id": row[0],
+                        "registerId": row[1],
+                        "name": row[2],
+                        "email": row[3],
+                        "phoneNumber":row[4],
+                        "address":row[5]
                         } for row in query_result]
         
         return result_list

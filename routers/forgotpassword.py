@@ -80,7 +80,7 @@ async def send_otp(request: Request, request_data: SendOTPRequest = Body(...)):
     try:
         otp_code = generate_otp_code()
         # Send OTP code to the provided phone number (use your implementation)
-        # send_otp_to_mobile(request_data.phone_number, otp_code)
+        send_otp_to_mobile(request_data.phone_number, otp_code)
         return {"message": "OTP code sent to your mobile phone"}
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -144,9 +144,9 @@ async def forgot_password(request: Request, request_data: ForgotPasswordRequest 
             create_forgot_password_entry = ForgotPassword(email=request_data.email, created_at=created_at, user_id= user.id, phone_number=request_data.phone_number, hashed_otp=otp_code)
             db.add(create_forgot_password_entry)
             db.commit()
-            # send_otp_to_mobile(phone_number, otp_plain)  # Automatically send OTP
-            # return {"message": "OTP code sent to your mobile phone"}
-            return {"message": "OTP code sent to your mobile phone","otp_code": otp_plain}  # Return success message without exposing the OTP code
+            send_otp_to_mobile(request_data.phone_number, otp_plain)  # Automatically send OTP
+            return {"message": "OTP code sent to your mobile phone"}
+            # return {"message": "OTP code sent to your mobile phone","otp_code": otp_plain}  # Return success message without exposing the OTP code
         else:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     except Exception as e:
@@ -167,8 +167,6 @@ async def forgot_password(request: Request, request_data: ForgotPasswordRequest 
     #     raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
     
 
-    
-    
 class VerifyOTPRequest(BaseModel):
     phone_number: str
     otp_code: str
