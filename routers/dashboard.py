@@ -99,3 +99,33 @@ async def get_team_members(db: Session = Depends(get_db_connection)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+PROFITS ="""SELECT d.INVESTED_AMOUNT as "investedAmount",
+d.REINVESTED_AMOUNT as "reinvestedAmount",
+d.PROFIT_IN_AMOUNT as "revenueGenerated",
+d.RETURNS as "returns",
+d.COMPANY_EXPENSES "companyExpenses"
+FROM AP_REVENUE_DETAILS d;"""
+
+
+@router.get("/overallprofits", response_model=List[Dict[str, Any]])
+async def get_overall_profits(db: Session = Depends(get_db_connection)):
+    try:
+        cursor = db.cursor()
+        cursor.execute(PROFITS)
+        query_result = cursor.fetchall()
+        cursor.close()
+        
+        # Convert query result into list of dictionaries
+        result_list = [{"investedAmount": row[0],
+                        "reinvestedAmount": row[1],
+                        "revenueGenerated": row[2],
+                        "returns": row[3],
+                        "companyExpenses":row[4],
+                        } for row in query_result]
+        
+        return result_list
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
