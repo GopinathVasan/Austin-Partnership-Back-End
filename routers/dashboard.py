@@ -67,3 +67,35 @@ async def get_invoice(db: Session = Depends(get_db_connection)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+TEAMMEMBERS = """SELECT ald.PROFILE_ID AS "id",
+CONCAT(ald.FIRST_NAME,' ',ald.LAST_NAME)AS "name",
+`POSITION` AS "position",
+ald.EMAIL AS "email",
+ald.PHONE as "phoneNumber",
+(SELECT IFNULL(SUM(AMOUNT_INVESTED),0) FROM AP_LLP_INVESTMENTS L
+WHERE L.PROFILE_ID = ald.PROFILE_ID ) as "totalInvestedAmount"
+FROM AP_LLP_DETAILS ald 
+ORDER BY ald.ORDER;"""
+
+
+@router.get("/teammembers", response_model=List[Dict[str, Any]])
+async def get_team_members(db: Session = Depends(get_db_connection)):
+    try:
+        cursor = db.cursor()
+        cursor.execute(TEAMMEMBERS)
+        query_result = cursor.fetchall()
+        cursor.close()
+        
+        # Convert query result into list of dictionaries
+        result_list = [{"id": row[0],
+                        "name": row[1],
+                        "position": row[2],
+                        "email": row[3],
+                        "phoneNumber":row[4],
+                        "totalInvestedAmount": row[5]} for row in query_result]
+        
+        return result_list
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
