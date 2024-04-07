@@ -36,3 +36,34 @@ async def get_investments(db: Session = Depends(get_db_connection)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+INVOICEQUERY = """SELECT ald.PROFILE_ID AS "id",
+CONCAT(ald.FIRST_NAME,' ',ald.LAST_NAME)AS "name",
+ald.PHONE as "phoneNumber",
+ald.EMAIL AS "email",
+AMOUNT_INVESTED as "cost",
+DATE_FORMAT(DATE_OF_INVESTED,'%d/%m/%y') as "date"
+FROM AP_LLP_DETAILS ald ,AP_LLP_INVESTMENTS a
+WHERE ald.PROFILE_ID = a.PROFILE_ID 
+ORDER BY DATE_OF_INVESTED DESC;"""
+
+
+@router.get("/invoicebalance", response_model=List[Dict[str, Any]])
+async def get_invoice(db: Session = Depends(get_db_connection)):
+    try:
+        cursor = db.cursor()
+        cursor.execute(INVOICEQUERY)
+        query_result = cursor.fetchall()
+        cursor.close()
+        
+        # Convert query result into list of dictionaries
+        result_list = [{"id": row[0],
+                        "name": row[1],
+                        "phoneNumber": row[2],
+                        "email": row[3],
+                        "cost":row[4],
+                        "date": row[5]} for row in query_result]
+        
+        return result_list
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
