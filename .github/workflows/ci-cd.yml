@@ -38,11 +38,11 @@ jobs:
 
     steps:
     - name: SSH into server and deploy
-      uses: appleboy/ssh-action@v0.1.4
+      uses: microsoft/ssh-action@v1
       with:
         host: ${{ secrets.VPS_HOST }}
         username: root
-        key: ${{ secrets.VPS_SSH_KEY }}  # Ensure this is base64 encoded key
+        key: ${{ secrets.VPS_SSH_KEY }}
         script: |
           docker pull ${{ secrets.DOCKER_USERNAME }}/fastapi_app:latest
           docker stop fastapi_container || true
