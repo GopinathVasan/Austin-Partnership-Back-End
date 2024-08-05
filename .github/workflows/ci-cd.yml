@@ -40,19 +40,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Debug - List /tmp directory before decoding key
-      run: ls -l /tmp
-
     - name: Decode SSH Key
       run: |
         echo "${{ secrets.VPS_SSH_KEY }}" | base64 --decode > /tmp/id_rsa
         chmod 600 /tmp/id_rsa
+        ls -l /tmp/id_rsa
+        cat /tmp/id_rsa
 
-    - name: Debug - List /tmp directory after decoding key
+    - name: Debug - List /tmp directory
       run: ls -l /tmp
 
-    - name: Debug - Print SSH Key file content
-      run: cat /tmp/id_rsa
+    - name: Test SSH Key Access
+      run: ssh -i /tmp/id_rsa -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} "echo SSH connection successful"
 
     - name: SSH into server and deploy
       uses: appleboy/ssh-action@v0.1.4
