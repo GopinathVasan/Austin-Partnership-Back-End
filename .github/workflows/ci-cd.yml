@@ -1,9 +1,9 @@
-name: Deploy FastAPI
+name: Deploy to Hostinger VPS
 
 on:
   push:
     branches:
-      - main
+      - main  # Adjust as needed
 
 jobs:
   deploy:
@@ -13,22 +13,10 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Set up SSH key
+    - name: Deploy to VPS via SSH
+      env:
+        VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        VPS_USER: ${{ secrets.VPS_USER }}
+        VPS_IP: ${{ secrets.VPS_IP }}
       run: |
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/id_rsa
-        chmod 600 /tmp/id_rsa
-
-    - name: Test SSH connection
-      run: ssh -i /tmp/id_rsa -o StrictHostKeyChecking=no root@93.127.185.162 "echo SSH connection successful"
-
-    - name: Deploy with SSH
-      uses: appleboy/ssh-action@v0.1.4
-      with:
-        host: your_server_ip
-        username: root
-        key: /tmp/id_rsa
-        script: |
-          docker pull vasanrock
-          docker stop fastapi_container || true
-          docker rm fastapi_container || true
-          docker run -d --name fastapi_container -p 80:80 vasanrock
+        ssh -o StrictHostKeyChecking=no $VPS_USER@$VPS_IP 'bash -s' < deploy.sh
