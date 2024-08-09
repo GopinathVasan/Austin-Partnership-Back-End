@@ -1,4 +1,4 @@
-name: Deploy to Hostinger VPS
+name: Deploy to VPS
 
 on:
   push:
@@ -13,16 +13,25 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Setup SSH
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ secrets.VPS_IP }} >> ~/.ssh/known_hosts
+    - name: Set up SSH
+      uses: webfactory/ssh-agent@v0.5.3
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: Install sshpass
-      run: sudo apt-get install -y sshpass
+    - name: Build Docker image
+      run: docker build -t yourusername/yourapp .
 
-    - name: Deploy to VPS with Password
+    - name: Push Docker image to Docker Hub
       run: |
-        sshpass -p "${{ secrets.VPS_PASSWORD }}" ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} 'bash -s' < deploy.sh
+        echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+        docker tag yourusername/yourapp yourusername/yourapp:latest
+        docker push yourusername/yourapp:latest
+
+    - name: Deploy to VPS
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} << 'EOF'
+        docker pull yourusername/yourapp:latest
+        docker stop myapp || true
+        docker rm myapp || true
+        docker run -d --name myapp -p 80:80 yourusername/yourapp:latest
+        EOF
