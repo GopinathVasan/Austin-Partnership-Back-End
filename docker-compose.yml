@@ -15,10 +15,13 @@ services:
 
   db:
     image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: root@austinpassword123
+      MYSQL_DATABASE: ${DB_NAME}       # Use environment variables for database
+      MYSQL_USER: ${DB_USER}           # Use environment variables for user
+      MYSQL_PASSWORD: ${DB_PASSWORD}   # Use environment variables for user password
     volumes:
       - mysql_data:/var/lib/mysql
-    env_file:
-      - .env
 
 volumes:
   mysql_data:
