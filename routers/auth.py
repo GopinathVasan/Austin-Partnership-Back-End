@@ -1,7 +1,7 @@
 import sys
 sys.path.append("..")
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Response,Form
+from fastapi import APIRouter, Depends, HTTPException, logger, status, Request, Response,Form
 # from fastapi import FastAPI, JSONResponse
 from pydantic import BaseModel
 from typing import Optional
@@ -19,6 +19,7 @@ from models import ForgotPassword
 import random
 from fastapi.params import Body
 from typing import Dict,Any,List
+import logging
 
 
 
@@ -70,25 +71,6 @@ class LoginForm(BaseModel):
     email: str
     password: str
 
-# def send_otp_to_mobile(phone_number: str, otp_code: str):
-#     # Placeholder function to simulate sending OTP to a mobile phone
-#     print(f"Sending OTP code {otp_code} to {phone_number}")
-
-# def generate_otp_code():
-#     # Generate a random 6-digit OTP code
-#     return ''.join([str(random.randint(0, 9)) for _ in range(6)])
-
-
-# async def get_form_data(request: Request) -> dict:
-#     form_data = request.json()
-#     return form_data
-    # form_data = await request.form()
-    # return dict(form_data)
-
-# def get_form_data(request: Request) -> dict:
-#     form_data = request.json()
-#     return form_data
-
 async def get_current_user(request: Request):
     try:
         token = request.cookies.get("access_token")
@@ -102,18 +84,22 @@ async def get_current_user(request: Request):
         return {"username": username, "id": user_id}
     except JWTError:
         raise HTTPException(status_code=404, detail="Not found")
-    
-
-# async def get_form_data(request: Request) -> dict:
-#     form_data = await request.form()
-#     return {key: value for key, value in form_data.items()}
+ 
        
 async def get_form_data(request: Request) -> dict:
-    form_data = await request.json()
-    return {
-        "email": form_data.get("email").encode(),
-        "password": form_data.get("password").encode()
-    }
+    try:
+        form_data = await request.json()
+        email = form_data.get("email")
+        password = form_data.get("password")
+        if email is None or password is None:
+            raise HTTPException(status_code=400, detail="Missing email or password")
+        return {
+            "email": email,
+            "password": password
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid request format: {str(e)}")
+
 
 def authenticate_user(email: str, password: str, db):
     USERS = db.query(models.USERS)\
@@ -126,10 +112,13 @@ def authenticate_user(email: str, password: str, db):
     return USERS  # User authenticated
 
 
+logger = logging.getLogger(__name__)
+
 @router.post("/token")
 async def login_for_access_token(response: Response, form_data: dict = Depends(get_form_data), db: Session = Depends(get_db)):
     email = form_data.get("email")
     password = form_data.get("password")
+    logger.debug(f"Received email: {email}")  # Correct usage of logger
     USERS = authenticate_user(email, password, db)
     if USERS is False:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect")
@@ -142,64 +131,6 @@ async def login_for_access_token(response: Response, form_data: dict = Depends(g
     return {"access_token": token, "token_type": "bearer"}
 
 
-
-# Modify the authenticate_user function to accept the decorator
-
-
-
-# @router.post("/token")
-# async def login_for_access_token(form_data: LoginForm = Depends(get_form_data), db: Session = Depends(get_db)):
-#     user = authenticate_user(form_data.username, form_data.password, db)
-#     if not user:
-#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Username or password is incorrect")
-#     token_expires = timedelta(minutes=60)
-#     token = create_access_token(user.username, user.id, expires_delta=token_expires)
-#     return {"access_token": token, "token_type": "bearer"}
-
-
-# @router.post("/token")
-# async def login_for_access_token(response: Response, request: Request, db: Session = Depends(get_db)):
-#     form_data_dict = await get_form_data(request)
-#     user = await authenticate_user(form_data_dict['email'], form_data_dict['password'], db)
-#     if not user:
-#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect")
-#     token_expires = timedelta(minutes=60)
-#     token = create_access_token(user.email, user.id, expires_delta=token_expires)
-#     response.set_cookie(key="access_token", value=token, httponly=True)
-#     return {"access_token": token, "token_type": "bearer"}
-    
-# @router.post("/token")
-# async def login_for_access_token(response: Response, request: Request, db: Session = Depends(get_db)):
-#     form_data = await get_form_data(request)
-#     user = await authenticate_user(form_data.get('email'), form_data.get('password'), db)
-#     if not user:
-#         raise HTTPException(status_code=401, detail="Email or password is incorrect")
-#     token_expires = timedelta(minutes=60)
-#     token = create_access_token(user.email, user.id, expires_delta=token_expires)
-#     response.set_cookie(key="access_token", value=token, httponly=True)
-#     return {"access_token": token, "token_type": "bearer"}
-
-
-
-
-
-
-#  @router.post("/token")
-# async def login_for_access_token(response: Response, form_data: LoginForm = Depends(), db: Session = Depends(get_db)):
-#     # Check if the provided email exists in the database
-#     user = db.query(models.USERS).filter(models.USERS.email == form_data.email).first()
-#     if not user:
-#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect")
-    
-#     # Verify the password for the user
-#     if not verify_password(form_data.password, user.hashed_password):
-#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect")
-
-#     # Generate and return the access token if the user is authenticated
-#     token_expires = timedelta(minutes=60)
-#     token = create_access_token(user.email, user.id, expires_delta=token_expires)
-#     response.set_cookie(key="access_token", value=token, httponly=True)
-#     return {"access_token": token, "token_type": "bearer"}
 
 
 
@@ -246,4 +177,13 @@ async def register_user(request: Request, user_data: Dict[str, Any] = Body(...),
         return {"message": "User successfully created"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
-# Ensure proper dependency injection for the database session
+    
+
+@router.post("/test")
+async def test_endpoint(request: Request):
+    try:
+        form_data = await request.json()
+        return {"received": form_data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid request format: {str(e)}")
+

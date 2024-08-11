@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from database import SessionLocal, engine
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from .auth import get_current_user
+from .dependencies import get_current_user
 
 
 
