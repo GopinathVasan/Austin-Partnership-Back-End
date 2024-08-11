@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   web:
-    image: your_image_name
+    image: backend_python:new-1
     build:
       context: .
       dockerfile: Dockerfile
