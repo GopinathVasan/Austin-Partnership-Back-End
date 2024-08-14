@@ -17,8 +17,9 @@ app = FastAPI()
 # Configure CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=["http://localhost:3001"],  # Replace with your frontend URL
-    allow_origins=["https://www.austinpartnership.in"],
+    allow_origins=["http://localhost:3000"],  # Replace with your frontend URL
+    # allow_origins=["https://www.austinpartnership.in"],
+    # allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"]
