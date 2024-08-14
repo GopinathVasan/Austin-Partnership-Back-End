@@ -1,7 +1,7 @@
 import sys
 import os
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from routers import auth, users, forgotpassword, otp, dashboard
 
@@ -17,13 +17,18 @@ app = FastAPI()
 # Configure CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=["http://localhost:3000"],  # Replace with your frontend URL
-    allow_origins=["https://www.austinpartnership.in"],
-    # allow_origins=["*"],
+    allow_origins=["https://www.austinpartnership.in", "http://localhost:3000"],  # Add more origins as needed
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"]
 )
+
+# Middleware to log request headers (for debugging)
+@app.middleware("http")
+async def log_request_data(request: Request, call_next):
+    logger.debug(f"Request Headers: {request.headers}")
+    response = await call_next(request)
+    return response
 
 # Include routers
 app.include_router(auth.router)
@@ -39,3 +44,7 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("Shutting down...")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
