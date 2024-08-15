@@ -20,9 +20,11 @@ app.add_middleware(
     # allow_origins=["https://www.austinpartnership.in", "http://localhost:3000"],  # Add more origins as needed
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"]
+    allow_methods=["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Cache-Control"]
 )
+
+
 
 # Middleware to log request headers (for debugging)
 @app.middleware("http")
