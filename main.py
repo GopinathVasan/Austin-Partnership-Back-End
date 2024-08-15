@@ -17,7 +17,8 @@ app = FastAPI()
 # Configure CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://www.austinpartnership.in", "http://localhost:3000"],  # Add more origins as needed
+    # allow_origins=["https://www.austinpartnership.in", "http://localhost:3000"],  # Add more origins as needed
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"]
