@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   web:
     image: backend_python:new-1
@@ -5,20 +7,23 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "80:80"
+      - "8000:8000"
     volumes:
       - .:/app
     env_file:
       - .env
 
-  apache:
-    build:
-      context: ./apache
+  nginx:
+    image: nginx:latest
     ports:
+      - "80:80"
       - "443:443"
     volumes:
-      - ./apache/htdocs:/usr/local/apache2/htdocs
-      - ./apache/certs:/etc/letsencrypt
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/certs:/etc/nginx/certs
+      - ./nginx/html:/usr/share/nginx/html
+    depends_on:
+      - web
 
   db:
     image: mysql:8
