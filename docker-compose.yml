@@ -13,13 +13,22 @@ services:
     env_file:
       - .env
 
+  apache:
+    build:
+      context: ./apache
+    ports:
+      - "443:443"
+    volumes:
+      - ./apache/htdocs:/usr/local/apache2/htdocs
+      - ./apache/certs:/etc/letsencrypt
+
   db:
     image: mysql:8
     environment:
       MYSQL_ROOT_PASSWORD: root@austinpassword123
-      MYSQL_DATABASE: ${DB_NAME}       # Use environment variables for database
-      MYSQL_USER: ${DB_USER}           # Use environment variables for user
-      MYSQL_PASSWORD: ${DB_PASSWORD}   # Use environment variables for user password
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
 
