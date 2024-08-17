@@ -20,7 +20,8 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - /etc/letsencrypt/live/austinpartnershipbackend.site:/etc/nginx/certs
+      - /etc/letsencrypt/live/austinpartnershipbackend.site/fullchain.pem:/etc/nginx/certs/fullchain.pem:ro
+      - /etc/letsencrypt/live/austinpartnershipbackend.site/privkey.pem:/etc/nginx/certs/privkey.pem:ro
       - ./nginx/html:/usr/share/nginx/html
     depends_on:
       - web
