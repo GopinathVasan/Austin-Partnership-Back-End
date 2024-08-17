@@ -1,16 +1,17 @@
-# Use the official Apache image from Docker Hub
-FROM httpd:2.4
+# Use the official Python image from the Docker Hub
+FROM python:3.9-slim
 
-# Install certbot for SSL certificates
-RUN apt-get update && \
-    apt-get install -y certbot python3-certbot-apache && \
-    apt-get clean
+# Set the working directory in the container
+WORKDIR /app
 
-# Copy custom Virtual Host file
-COPY ./my_vhost.conf /usr/local/apache2/conf/extra/my_vhost.conf
+# Copy the current directory contents into the container
+COPY . /app
 
-# Enable the Virtual Host and SSL module
-RUN echo "Include /usr/local/apache2/conf/extra/my_vhost.conf" >> /usr/local/apache2/conf/httpd.conf && \
-    sed -i 's/^#\(LoadModule .*mod_ssl.so\)/\1/' /usr/local/apache2/conf/httpd.conf
+# Install any needed packages specified in requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-EXPOSE 443
+# Expose the port the app runs on
+EXPOSE 8000
+
+# Run the FastAPI app using uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
