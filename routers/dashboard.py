@@ -60,7 +60,7 @@ async def get_invoice(db: Session = Depends(get_db_connection)):
                         "name": row[1],
                         "phoneNumber": row[2],
                         "email": row[3],
-                        "cost":row[4],
+                        "totalInvestedAmount":row[4],
                         "date": row[5]} for row in query_result]
         
         return result_list
@@ -156,6 +156,31 @@ async def get_contact_information(db: Session = Depends(get_db_connection)):
                         "email": row[3],
                         "phoneNumber":row[4],
                         "address":row[5]
+                        } for row in query_result]
+        
+        return result_list
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+monthvalue= """SELECT SUM(D.REALISED_PL) as monthlyprofit, DATE_FORMAT(TRADE_DATE,'%M-%Y') as monthdate
+FROM AP_LLP_DETAILS_DAY_TRADE_PROFITS D
+GROUP BY DATE_FORMAT(TRADE_DATE,'%M-%Y') 
+ORDER BY DATE_FORMAT(TRADE_DATE,'%M-%Y') DESC;"""
+
+
+
+@router.get("/monthlyprofit", response_model=List[Dict[str, Any]])
+async def get_contact_information(db: Session = Depends(get_db_connection)):
+    try:
+        cursor = db.cursor()
+        cursor.execute(monthvalue)
+        query_result = cursor.fetchall()
+        cursor.close()
+        
+        # Convert query result into list of dictionaries
+        result_list = [{"monthlyprofit": row[0],
+                        "monthdate": row[1]
                         } for row in query_result]
         
         return result_list
