@@ -169,7 +169,6 @@ GROUP BY DATE_FORMAT(TRADE_DATE,'%M-%Y')
 ORDER BY DATE_FORMAT(TRADE_DATE,'%M-%Y') DESC;"""
 
 
-
 @router.get("/monthlyprofit", response_model=List[Dict[str, Any]])
 async def get_contact_information(db: Session = Depends(get_db_connection)):
     try:
@@ -181,6 +180,36 @@ async def get_contact_information(db: Session = Depends(get_db_connection)):
         # Convert query result into list of dictionaries
         result_list = [{"monthlyprofit": row[0],
                         "monthdate": row[1]
+                        } for row in query_result]
+        
+        return result_list
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+Totalinvestmentuser="""SELECT ald.PROFILE_ID AS "id",
+CONCAT(ald.FIRST_NAME,' ',ald.LAST_NAME)AS "name",
+SUM(AMOUNT_INVESTED) as "totalInvestments"
+FROM AP_LLP_DETAILS ald ,AP_LLP_INVESTMENTS a
+WHERE ald.PROFILE_ID = a.PROFILE_ID 
+GROUP BY name
+ORDER BY DATE_OF_INVESTED DESC;"""
+
+
+
+
+@router.get("/totaluserinvestment", response_model=List[Dict[str, Any]])
+async def get_contact_information(db: Session = Depends(get_db_connection)):
+    try:
+        cursor = db.cursor()
+        cursor.execute(Totalinvestmentuser)
+        query_result = cursor.fetchall()
+        cursor.close()
+        
+        # Convert query result into list of dictionaries
+        result_list = [{"id": row[0],
+                        "name": row[1],
+                        "totalInvestments": row[2]
                         } for row in query_result]
         
         return result_list
